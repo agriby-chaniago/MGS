@@ -83,12 +83,11 @@ def upload_with_progress(file_bytes, filename, name):
 def render_upload():
     st.header("Upload Dataset ZIP")
 
-    # Read-only mode: audit sudah dimulai — tidak boleh upload ulang di tengah flow
-    if st.session_state.get("audit_id"):
-        st.info(
-            "Audit sedang atau sudah berjalan. Upload dinonaktifkan. "
-            "Klik **Audit Dataset Baru** di Step 3 untuk mulai ulang."
-        )
+    # Read-only mode: dataset sudah diupload — tidak boleh upload ulang di tengah flow
+    if st.session_state.get("dataset_id"):
+        st.success("Dataset sudah diupload.")
+        if not st.session_state.get("audit_id"):
+            st.caption("Untuk ganti dataset, klik Audit Dataset Baru di Step 3.")
         dataset_id = st.session_state.get("dataset_id", "-")
         name = st.session_state.get("dataset_name", "-")
         total = st.session_state.get("total_images", 0)
