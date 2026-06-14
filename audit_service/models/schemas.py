@@ -5,6 +5,7 @@ from uuid import UUID
 
 class CreateAuditRequest(BaseModel):
     dataset_id: UUID
+    force: bool = False
 
 
 class AuditSchema(BaseModel):
