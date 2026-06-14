@@ -3,10 +3,8 @@ import shutil
 import zipfile
 from uuid import uuid4
 
-from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, HTTPException, Depends
 from sqlalchemy.orm import Session
-from fastapi import Depends
-from sqlalchemy.exc import SQLAlchemyError
 
 from models.database import get_db
 from models.orm import Dataset, DatasetClass

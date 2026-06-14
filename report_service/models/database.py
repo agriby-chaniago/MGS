@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 DATABASE_URL = (
     f"postgresql://{os.getenv('POSTGRES_USER', 'modelgate')}:{os.getenv('POSTGRES_PASSWORD', 'modelgate_secret')}"
     f"@{os.getenv('POSTGRES_HOST', 'postgres')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB', 'modelgate')}"
-    f"?options=-csearch_path%3Dreport_svc%2Cpublic"
+    f"?options=-csearch_path%3Dreport_svc%2Caudit_svc%2Canalysis_svc%2Cpublic"
 )
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
@@ -16,10 +16,16 @@ class Base(DeclarativeBase):
     pass
 
 
+# Dipakai oleh mirror models (audit_svc, analysis_svc) — tidak di-create_all
+class ReadOnlyBase(DeclarativeBase):
+    pass
+
+
 def init_db():
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS report_svc"))
         conn.commit()
+    # Hanya create tabel milik report_svc, bukan mirror tables
     Base.metadata.create_all(bind=engine)
 
 
