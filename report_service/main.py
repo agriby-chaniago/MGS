@@ -1,14 +1,22 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+
 from models.database import init_db
 from routers import reports
 from shared.response import success_response
 
-app = FastAPI(title="Report Service", version="1.0.0")
+logging.basicConfig(level=logging.INFO)
 
 
-@app.on_event("startup")
-def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
+    yield
+
+
+app = FastAPI(title="Report Service", version="1.0.0", lifespan=lifespan)
 
 
 @app.get("/api/v1/reports/health")
