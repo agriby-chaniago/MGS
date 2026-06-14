@@ -1,3 +1,4 @@
+import hashlib
 import os
 import shutil
 import zipfile
@@ -42,6 +43,26 @@ async def upload_dataset(
         raise HTTPException(
             status_code=413,
             detail=f"File terlalu besar. Maksimum {MAX_ZIP_SIZE_MB}MB, diterima {size_mb:.1f}MB",
+        )
+
+    # 1b. Dedup: cek hash — return existing dataset jika sama
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
+    existing = db.query(Dataset).filter(
+        Dataset.file_hash == file_hash,
+        Dataset.status == "active",
+    ).first()
+    if existing:
+        return success_response(
+            data={
+                "dataset_id": str(existing.id),
+                "name": existing.name,
+                "class_count": existing.class_count,
+                "total_images": existing.total_images,
+                "file_size_mb": existing.file_size_mb,
+                "invalid_files": [],
+                "cached": True,
+            },
+            service=SERVICE_NAME,
         )
 
     upload_id = str(uuid4())
@@ -91,6 +112,7 @@ async def upload_dataset(
             total_images=stats.total_images,
             file_size_mb=round(stats.total_size_bytes / (1024 * 1024), 2),
             minio_path=minio_path,
+            file_hash=file_hash,
         )
         db.add(dataset)
         db.flush()

@@ -17,6 +17,7 @@ class Dataset(Base):
     total_images = Column(Integer)
     file_size_mb = Column(Float)
     minio_path   = Column(String)
+    file_hash    = Column(String(64), nullable=True, index=True)
     created_at   = Column(DateTime, default=datetime.utcnow)
 
     classes      = relationship("DatasetClass", back_populates="dataset")

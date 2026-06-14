@@ -25,7 +25,17 @@ def create_audit(body: CreateAuditRequest, db: Session = Depends(get_db)):
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset tidak ditemukan atau sudah dihapus")
 
-    # 2. Buat audit record
+    # 2. Dedup: return audit completed yang sudah ada untuk dataset ini
+    existing = db.query(Audit).filter(
+        Audit.dataset_id == body.dataset_id,
+        Audit.status == "completed",
+    ).order_by(Audit.created_at.desc()).first()
+    if existing:
+        data = AuditSchema.model_validate(existing).model_dump()
+        data["cached"] = True
+        return success_response(data=data, service=SERVICE_NAME)
+
+    # 3. Buat audit record
     audit = Audit(dataset_id=body.dataset_id)
     db.add(audit)
 

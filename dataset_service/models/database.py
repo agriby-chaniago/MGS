@@ -25,6 +25,10 @@ class Base(DeclarativeBase):
 def init_db():
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS dataset_svc"))
+        conn.execute(text(
+            "ALTER TABLE IF EXISTS dataset_svc.datasets "
+            "ADD COLUMN IF NOT EXISTS file_hash VARCHAR(64)"
+        ))
         conn.commit()
     from models.orm import Dataset, DatasetClass  # noqa: F401
     Base.metadata.create_all(bind=engine)
