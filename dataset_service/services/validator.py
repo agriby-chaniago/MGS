@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from PIL import Image
 
 VALID_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
-MAX_ZIP_SIZE_MB = 500
+MAX_ZIP_SIZE_MB = 2048
 
 
 @dataclass

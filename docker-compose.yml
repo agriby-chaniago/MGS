@@ -122,6 +122,15 @@ services:
       - analysis_service
       - report_service
 
+  streamlit:
+    build: ./streamlit_app
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://nginx:80
+    depends_on:
+      - nginx
+
 volumes:
   postgres_data:
   rabbitmq_data:
