@@ -4,6 +4,7 @@ VALID_TRANSITIONS = {
     "pending":    ["queued"],
     "queued":     ["processing"],
     "processing": ["completed", "failed"],
+    "failed":     ["queued"],
 }
 
 

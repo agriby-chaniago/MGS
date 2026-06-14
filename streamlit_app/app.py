@@ -18,6 +18,45 @@ st.set_page_config(page_title="ModelGate", layout="wide")
 st.title("ModelGate — CV Dataset Quality Audit")
 
 
+def render_sidebar():
+    st.sidebar.header("Dataset History")
+    try:
+        r = requests.get(f"{API}/api/v1/datasets", timeout=5)
+        if r.status_code != 200:
+            st.sidebar.caption("Tidak dapat memuat history.")
+            return
+        datasets = r.json().get("data", [])
+    except Exception:
+        st.sidebar.caption("Tidak dapat memuat history.")
+        return
+
+    if not datasets:
+        st.sidebar.caption("Belum ada dataset.")
+        return
+
+    for d in datasets:
+        label = f"{d['name']}\n{d['total_images']} gambar"
+        if st.sidebar.button(label, key=f"hist_{d['id']}", use_container_width=True):
+            if st.session_state.get("audit_id") and not st.session_state.get("audit_polling_done"):
+                st.sidebar.warning("Audit sedang berjalan.")
+            else:
+                for key in (
+                    "audit_id", "audit_polling_done", "audit_final_status",
+                    "audit_done_rows", "audit_cached_notice", "report_summary",
+                    "report_results", "pdf_bytes", "report_audit_id_loaded",
+                    "pdf_error", "auto_load_report",
+                ):
+                    st.session_state.pop(key, None)
+                st.session_state["dataset_id"]           = d["id"]
+                st.session_state["dataset_name"]         = d["name"]
+                st.session_state["total_images"]         = d.get("total_images", 0)
+                st.session_state["dataset_class_count"]  = d.get("class_count", 0)
+                st.session_state["dataset_file_size_mb"] = d.get("file_size_mb", 0)
+                st.session_state["upload_done"]          = True
+                st.session_state["step"]                 = 2
+                st.rerun()
+
+
 def render_step_header(step):
     labels = {1: "1. Upload Dataset", 2: "2. Jalankan Audit", 3: "3. Laporan"}
     unlocked = {
@@ -326,8 +365,25 @@ def render_audit():
                 st.session_state["auto_load_report"] = True
                 st.session_state["step"] = 3
                 st.rerun()
-        else:
+        elif status == "failed":
             st.error("Audit gagal.")
+            if st.button("Coba Lagi", key="retry_audit_btn"):
+                try:
+                    r = requests.post(f"{API}/api/v1/audits/{audit_id}/retry", timeout=10)
+                    r.raise_for_status()
+                    st.session_state["audit_polling_done"] = False
+                    st.session_state.pop("audit_final_status", None)
+                    st.session_state.pop("audit_done_rows", None)
+                    st.rerun()
+                except requests.exceptions.HTTPError as e:
+                    detail = ""
+                    try:
+                        detail = e.response.json().get("detail", e.response.text)
+                    except Exception:
+                        detail = str(e)
+                    st.error(f"Gagal retry: {detail}")
+                except requests.exceptions.RequestException as e:
+                    st.error(f"Gagal retry: {e}")
 
 
 def render_report():
@@ -476,6 +532,7 @@ def render_report():
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 step = st.session_state.get("step", 1)
+render_sidebar()
 render_step_header(step)
 
 if step == 1:

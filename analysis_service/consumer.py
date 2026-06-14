@@ -48,6 +48,12 @@ def process_message(ch, method, properties, body):
         payload = json.loads(body)
         audit_id = payload["audit_id"]
 
+        # Force retry: hapus semua result lama agar bisa diulang dari awal
+        if payload.get("force"):
+            db.query(AnalysisResult).filter(AnalysisResult.audit_id == audit_id).delete()
+            db.commit()
+            logger.info(f"[{audit_id}] Force retry: cleared existing results")
+
         # Idempotency: semua analyzer sudah ada result final?
         existing = db.query(AnalysisResult).filter(
             AnalysisResult.audit_id == audit_id,

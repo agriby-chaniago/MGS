@@ -67,6 +67,48 @@ def create_audit(body: CreateAuditRequest, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/api/v1/audits/{audit_id}/retry", status_code=200)
+def retry_audit(audit_id: UUID, db: Session = Depends(get_db)):
+    audit = db.query(Audit).filter(Audit.id == audit_id).first()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit tidak ditemukan")
+    if audit.status != "failed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Hanya audit berstatus 'failed' yang bisa di-retry (status saat ini: {audit.status})",
+        )
+
+    dataset = db.query(DatasetReadOnly).filter(
+        DatasetReadOnly.id == audit.dataset_id,
+        DatasetReadOnly.status != "deleted",
+    ).first()
+    if not dataset:
+        raise HTTPException(status_code=400, detail="Dataset sudah dihapus, tidak bisa retry")
+
+    transition(audit, "queued", db)
+    audit.error_message = None
+    audit.completed_at = None
+    db.commit()
+    db.refresh(audit)
+
+    try:
+        publish_audit_job({
+            "audit_id":            str(audit.id),
+            "dataset_id":          str(audit.dataset_id),
+            "dataset_minio_path":  dataset.minio_path,
+            "requested_analyzers": audit.requested_analyzers,
+            "created_at":          audit.created_at.isoformat(),
+            "force":               True,
+        })
+    except Exception:
+        raise HTTPException(status_code=500, detail="Gagal mengirim retry job ke queue")
+
+    return success_response(
+        data=AuditSchema.model_validate(audit).model_dump(),
+        service=SERVICE_NAME,
+    )
+
+
 @router.get("/api/v1/audits/{audit_id}")
 def get_audit(audit_id: UUID, db: Session = Depends(get_db)):
     audit = db.query(Audit).filter(Audit.id == audit_id).first()
