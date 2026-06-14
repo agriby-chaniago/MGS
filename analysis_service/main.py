@@ -1,13 +1,25 @@
+import logging
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+
+from consumer import start_consuming
 from models.database import init_db
 from shared.response import success_response
 
-app = FastAPI(title="Analysis Service", version="1.0.0")
+logging.basicConfig(level=logging.INFO)
 
 
-@app.on_event("startup")
-def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
+    thread = threading.Thread(target=start_consuming, daemon=True)
+    thread.start()
+    yield
+
+
+app = FastAPI(title="Analysis Service", version="1.0.0", lifespan=lifespan)
 
 
 @app.get("/api/v1/analyses/health")

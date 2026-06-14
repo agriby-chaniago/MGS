@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 DATABASE_URL = (
     f"postgresql://{os.getenv('POSTGRES_USER', 'modelgate')}:{os.getenv('POSTGRES_PASSWORD', 'modelgate_secret')}"
     f"@{os.getenv('POSTGRES_HOST', 'postgres')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB', 'modelgate')}"
-    f"?options=-csearch_path%3Daudit_svc%2Cdataset_svc%2Cpublic"
+    f"?options=-csearch_path%3Daudit_svc%2Cdataset_svc%2Canalysis_svc%2Cpublic"
 )
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
