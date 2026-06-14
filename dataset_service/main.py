@@ -13,13 +13,13 @@ def startup():
     minio_service.ensure_bucket()
 
 
-app.include_router(upload.router)
-app.include_router(datasets.router)
-
-
 @app.get("/api/v1/datasets/health")
 def health():
     return success_response(
         data={"status": "ok", "service": "dataset_service"},
         service="dataset_service",
     )
+
+
+app.include_router(upload.router)
+app.include_router(datasets.router)
