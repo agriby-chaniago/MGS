@@ -1,6 +1,6 @@
 import os
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import sessionmaker
 
 DATABASE_URL = (
     f"postgresql://{os.getenv('POSTGRES_USER', 'modelgate')}:{os.getenv('POSTGRES_PASSWORD', 'modelgate_secret')}"
@@ -12,21 +12,11 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-class Base(DeclarativeBase):
-    pass
-
-
-# Dipakai oleh mirror models (audit_svc, analysis_svc) — tidak di-create_all
-class ReadOnlyBase(DeclarativeBase):
-    pass
-
-
 def init_db():
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS report_svc"))
         conn.commit()
-    # Hanya create tabel milik report_svc, bukan mirror tables
-    Base.metadata.create_all(bind=engine)
+    # Tidak perlu create_all() — report_service tidak punya tabel sendiri
 
 
 def get_db():
