@@ -11,12 +11,12 @@ def startup():
     init_db()
 
 
-app.include_router(reports.router)
-
-
 @app.get("/api/v1/reports/health")
 def health():
     return success_response(
         data={"status": "ok", "service": "report_service"},
         service="report_service",
     )
+
+
+app.include_router(reports.router)
