@@ -28,3 +28,13 @@ class DatasetReadOnly(ReadOnlyBase):
     id         = Column(UUID(as_uuid=True), primary_key=True)
     minio_path = Column(String)
     status     = Column(String)
+
+
+class AnalysisResultReadOnly(ReadOnlyBase):
+    __tablename__ = "analysis_results"
+    __table_args__ = {"schema": "analysis_svc"}
+
+    id            = Column(UUID(as_uuid=True), primary_key=True)
+    audit_id      = Column(UUID(as_uuid=True), index=True)
+    analyzer_type = Column(String(50))
+    status        = Column(String(50))
