@@ -14,7 +14,7 @@ KOMPONEN = {
     "Q": ("Resolution (Q)", "% gambar dalam ±1 sigma median", 0.20),
 }
 
-st.set_page_config(page_title="ModelGate", layout="wide")
+st.set_page_config(page_title="ModelGate", layout="wide", initial_sidebar_state="collapsed")
 st.title("ModelGate — CV Dataset Quality Audit")
 
 
