@@ -36,7 +36,8 @@ def render_sidebar():
 
     for d in datasets:
         label = f"{d['name']}\n{d['total_images']} gambar"
-        if st.sidebar.button(label, key=f"hist_{d['id']}", use_container_width=True):
+        col_btn, col_del = st.sidebar.columns([5, 1])
+        if col_btn.button(label, key=f"hist_{d['id']}", use_container_width=True):
             if st.session_state.get("audit_id") and not st.session_state.get("audit_polling_done"):
                 st.sidebar.warning("Audit sedang berjalan.")
             else:
@@ -55,6 +56,22 @@ def render_sidebar():
                 st.session_state["upload_done"]          = True
                 st.session_state["step"]                 = 2
                 st.rerun()
+        if col_del.button("🗑", key=f"del_{d['id']}", help="Hapus dataset"):
+            try:
+                requests.delete(f"{API}/api/v1/datasets/{d['id']}", timeout=5)
+            except Exception:
+                pass
+            if st.session_state.get("dataset_id") == d["id"]:
+                for key in (
+                    "dataset_id", "dataset_name", "total_images", "dataset_class_count",
+                    "dataset_file_size_mb", "upload_done", "step",
+                    "audit_id", "audit_polling_done", "audit_final_status",
+                    "audit_done_rows", "audit_cached_notice", "report_summary",
+                    "report_results", "pdf_bytes", "report_audit_id_loaded",
+                    "pdf_error", "auto_load_report",
+                ):
+                    st.session_state.pop(key, None)
+            st.rerun()
 
 
 def render_step_header(step):
