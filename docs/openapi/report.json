@@ -1,0 +1,294 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Report Service",
+    "version": "1.0.0",
+    "description": "Service untuk mengambil laporan hasil audit dataset. Mengagregasi hasil dari semua analyzer, menghitung health score (0-100), grade (A/B/C/D/F), dan generate PDF."
+  },
+  "servers": [
+    { "url": "http://localhost:8080", "description": "Via Nginx (Docker)" },
+    { "url": "http://localhost:8004", "description": "Direct" }
+  ],
+  "tags": [
+    { "name": "Reports", "description": "Laporan hasil audit" },
+    { "name": "Health", "description": "Health check" }
+  ],
+  "paths": {
+    "/api/v1/reports/{audit_id}": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get laporan lengkap",
+        "description": "Ambil laporan lengkap hasil audit termasuk semua hasil analyzer, health score, grade, dan breakdown komponen.",
+        "parameters": [
+          {
+            "name": "audit_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Laporan lengkap audit",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReportResponse" },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "audit_id": "660e8400-e29b-41d4-a716-446655440111",
+                    "dataset_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "audit_status": "completed",
+                    "health_score": 82.5,
+                    "grade": "B",
+                    "components": {
+                      "class_balance": 75.0,
+                      "image_quality": 90.0
+                    },
+                    "analysis_results": [
+                      {
+                        "analyzer_type": "class_balance",
+                        "status": "completed",
+                        "result_payload": { "imbalance_ratio": 1.8, "classes": {"cat": 200, "dog": 110} },
+                        "error_message": null,
+                        "completed_at": "2024-01-01T10:05:00Z"
+                      }
+                    ],
+                    "created_at": "2024-01-01T10:00:00Z",
+                    "completed_at": "2024-01-01T10:05:30Z"
+                  },
+                  "error": null,
+                  "metadata": {
+                    "service": "report_service",
+                    "version": "1.0.0",
+                    "timestamp": "2024-01-01T10:10:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Audit tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{audit_id}/summary": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get ringkasan laporan",
+        "description": "Ambil ringkasan singkat: audit_id, status, health_score, grade, dan komponen breakdown. Tanpa detail hasil analyzer.",
+        "parameters": [
+          {
+            "name": "audit_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ringkasan audit",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SummaryResponse" },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "audit_id": "660e8400-e29b-41d4-a716-446655440111",
+                    "audit_status": "completed",
+                    "health_score": 82.5,
+                    "grade": "B",
+                    "components": {
+                      "class_balance": 75.0,
+                      "image_quality": 90.0
+                    }
+                  },
+                  "error": null,
+                  "metadata": {
+                    "service": "report_service",
+                    "version": "1.0.0",
+                    "timestamp": "2024-01-01T10:10:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Audit tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{audit_id}/pdf": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Download laporan PDF",
+        "description": "Generate dan download laporan audit dalam format PDF.",
+        "parameters": [
+          {
+            "name": "audit_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File PDF laporan",
+            "headers": {
+              "Content-Disposition": {
+                "schema": { "type": "string" },
+                "example": "attachment; filename=report_660e8400-....pdf"
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": {
+            "description": "Audit tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service sehat",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": { "status": "ok", "service": "report_service" },
+                  "error": null,
+                  "metadata": {
+                    "service": "report_service",
+                    "version": "1.0.0",
+                    "timestamp": "2024-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiMetadata": {
+        "type": "object",
+        "properties": {
+          "service": { "type": "string" },
+          "version": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "properties": {
+          "detail": { "type": "string" }
+        }
+      },
+      "AnalysisResult": {
+        "type": "object",
+        "properties": {
+          "analyzer_type": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed"]
+          },
+          "result_payload": {
+            "type": "object",
+            "nullable": true,
+            "description": "Output spesifik tiap analyzer"
+          },
+          "error_message": { "type": "string", "nullable": true },
+          "completed_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "ReportData": {
+        "type": "object",
+        "properties": {
+          "audit_id": { "type": "string", "format": "uuid" },
+          "dataset_id": { "type": "string", "format": "uuid" },
+          "audit_status": {
+            "type": "string",
+            "enum": ["queued", "running", "completed", "failed"]
+          },
+          "health_score": {
+            "type": "number",
+            "nullable": true,
+            "description": "Skor kesehatan dataset 0-100. Null jika audit belum completed."
+          },
+          "grade": {
+            "type": "string",
+            "nullable": true,
+            "enum": ["A", "B", "C", "D", "F", null],
+            "description": "Grade berdasarkan health_score. Null jika belum completed."
+          },
+          "components": {
+            "type": "object",
+            "nullable": true,
+            "description": "Breakdown skor per analyzer",
+            "additionalProperties": { "type": "number" }
+          },
+          "analysis_results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AnalysisResult" }
+          },
+          "created_at": { "type": "string", "format": "date-time" },
+          "completed_at": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "ReportResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": { "$ref": "#/components/schemas/ReportData" },
+          "error": { "type": "string", "nullable": true },
+          "metadata": { "$ref": "#/components/schemas/ApiMetadata" }
+        }
+      },
+      "SummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "audit_id": { "type": "string", "format": "uuid" },
+              "audit_status": { "type": "string" },
+              "health_score": { "type": "number", "nullable": true },
+              "grade": { "type": "string", "nullable": true },
+              "components": { "type": "object", "nullable": true }
+            }
+          },
+          "error": { "type": "string", "nullable": true },
+          "metadata": { "$ref": "#/components/schemas/ApiMetadata" }
+        }
+      }
+    }
+  }
+}
