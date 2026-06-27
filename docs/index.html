@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ModelGate API Docs</title>
+  <script type="module" src="./rapidoc-min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e94560;
+      white-space: nowrap;
+    }
+
+    nav {
+      display: flex;
+      gap: 4px;
+    }
+
+    nav button {
+      background: transparent;
+      border: 1px solid #0f3460;
+      color: #a0a0b0;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    nav button:hover {
+      border-color: #e94560;
+      color: #e94560;
+    }
+
+    nav button.active {
+      background: #e94560;
+      border-color: #e94560;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      background: #0f3460;
+      color: #a0a0b0;
+      border-radius: 3px;
+      padding: 1px 5px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    rapi-doc {
+      flex: 1;
+      min-height: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ModelGate API</h1>
+    <nav>
+      <button class="active" data-spec="./openapi/dataset.json" onclick="switchSpec(this)">
+        Dataset <span class="badge">:8001</span>
+      </button>
+      <button data-spec="./openapi/audit.json" onclick="switchSpec(this)">
+        Audit <span class="badge">:8002</span>
+      </button>
+      <button data-spec="./openapi/analysis.json" onclick="switchSpec(this)">
+        Analysis <span class="badge">:8003</span>
+      </button>
+      <button data-spec="./openapi/report.json" onclick="switchSpec(this)">
+        Report <span class="badge">:8004</span>
+      </button>
+    </nav>
+  </header>
+
+  <rapi-doc
+    id="rapidoc"
+    spec-url="./openapi/dataset.json"
+    theme="dark"
+    bg-color="#1a1a2e"
+    nav-bg-color="#16213e"
+    nav-text-color="#a0a0b0"
+    nav-hover-bg-color="#0f3460"
+    nav-hover-text-color="#e94560"
+    nav-accent-color="#e94560"
+    primary-color="#e94560"
+    render-style="read"
+    schema-style="table"
+    show-header="false"
+    allow-server-selection="false"
+    show-components="true"
+    sort-tags="false"
+    style="display: flex; flex: 1;"
+  ></rapi-doc>
+
+  <script>
+    function switchSpec(btn) {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('rapidoc').setAttribute('spec-url', btn.dataset.spec);
+    }
+  </script>
+</body>
+</html>

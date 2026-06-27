@@ -65,6 +65,7 @@ Tunggu sampai semua container healthy (±1-2 menit, terutama PostgreSQL dan Rabb
 |---|---|
 | http://localhost:8501 | Aplikasi utama (Streamlit UI) |
 | http://localhost:8080 | API Gateway (Nginx) |
+| http://localhost:8080/docs/ | API Documentation (RapiDoc) |
 | http://localhost:9001 | MinIO Console (minioadmin / minioadmin123) |
 | http://localhost:15672 | RabbitMQ Management (guest / guest) |
 
@@ -92,6 +93,22 @@ Tunggu sampai semua container healthy (±1-2 menit, terutama PostgreSQL dan Rabb
                  Distribution (25%), Quality (20%)
        Download PDF
 ```
+
+---
+
+## API Documentation
+
+Dokumentasi interaktif tersedia via **RapiDoc** — buka `http://localhost:8080/docs/` saat stack jalan, atau buka `docs/index.html` langsung di browser (tanpa docker).
+
+### Refresh specs (opsional)
+
+Setelah ada perubahan endpoint, generate ulang spec dari service yang sedang jalan:
+
+```bash
+bash docs/generate_specs.sh
+```
+
+Lalu commit `docs/openapi/*.json`.
 
 ---
 
@@ -159,6 +176,11 @@ MGS/
 ├── streamlit_app/      Streamlit UI
 ├── shared/             Kode bersama (response format, dll)
 ├── nginx/              nginx.conf (API gateway config)
+├── docs/               API documentation (RapiDoc)
+│   ├── index.html          UI docs
+│   ├── rapidoc-min.js      RapiDoc bundled (offline)
+│   ├── generate_specs.sh   Refresh OpenAPI specs dari running services
+│   └── openapi/            OpenAPI 3.0 JSON per service
 ├── docker-compose.yml
 └── .env.example        Template konfigurasi (salin ke .env)
 ```

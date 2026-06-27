@@ -1,0 +1,45 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Analysis Service",
+    "version": "1.0.0",
+    "description": "Service async worker yang menjalankan analyzer pada dataset. Tidak memiliki public API endpoint — menerima job via RabbitMQ dari Audit Service dan menulis hasil ke database. Hasil dapat diakses melalui Report Service."
+  },
+  "servers": [
+    { "url": "http://localhost:8003", "description": "Direct" }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Health check" }
+  ],
+  "paths": {
+    "/api/v1/analyses/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "description": "Cek status service. Service berjalan sebagai RabbitMQ consumer di background thread.",
+        "responses": {
+          "200": {
+            "description": "Service sehat",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": { "status": "ok", "service": "analysis_service" },
+                  "error": null,
+                  "metadata": {
+                    "service": "analysis_service",
+                    "version": "1.0.0",
+                    "timestamp": "2024-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {}
+  }
+}

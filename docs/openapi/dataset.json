@@ -1,0 +1,311 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Dataset Service",
+    "version": "1.0.0",
+    "description": "Service untuk upload dan manajemen dataset gambar format ZIP. Dataset harus berstruktur: `nama_class/gambar.jpg`. Minimal 2 class."
+  },
+  "servers": [
+    { "url": "http://localhost:8080", "description": "Via Nginx (Docker)" },
+    { "url": "http://localhost:8001", "description": "Direct" }
+  ],
+  "tags": [
+    { "name": "Datasets", "description": "Upload dan manajemen dataset" },
+    { "name": "Health", "description": "Health check" }
+  ],
+  "paths": {
+    "/api/v1/datasets/upload": {
+      "post": {
+        "tags": ["Datasets"],
+        "summary": "Upload dataset",
+        "description": "Upload dataset gambar dalam format ZIP. Otomatis dedup berdasarkan SHA-256 hash — jika file identik sudah ada, return dataset existing dengan `cached: true`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file", "name"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File ZIP berisi folder class → gambar"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Nama dataset"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dataset berhasil diupload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UploadResponse" },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "dataset_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "cats_vs_dogs",
+                    "class_count": 2,
+                    "total_images": 500,
+                    "file_size_mb": 45.2,
+                    "invalid_files": [],
+                    "cached": false
+                  },
+                  "error": null,
+                  "metadata": {
+                    "service": "dataset_service",
+                    "version": "1.0.0",
+                    "timestamp": "2024-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Struktur ZIP tidak valid atau kurang dari 2 class",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          },
+          "413": {
+            "description": "File melebihi batas ukuran maksimum",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          },
+          "500": {
+            "description": "Gagal upload ke storage atau simpan ke database",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets": {
+      "get": {
+        "tags": ["Datasets"],
+        "summary": "List semua dataset",
+        "description": "Ambil semua dataset yang aktif (status != deleted), diurutkan terbaru dulu.",
+        "responses": {
+          "200": {
+            "description": "List dataset",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatasetListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/{dataset_id}": {
+      "get": {
+        "tags": ["Datasets"],
+        "summary": "Get detail dataset",
+        "description": "Ambil detail dataset termasuk list class dan jumlah gambar per class.",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detail dataset",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatasetDetailResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Dataset tidak ditemukan atau sudah dihapus",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Datasets"],
+        "summary": "Hapus dataset",
+        "description": "Soft delete dataset (status → deleted) dan hapus file dari MinIO storage.",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset berhasil dihapus",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "dataset_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "status": "deleted"
+                  },
+                  "error": null,
+                  "metadata": {
+                    "service": "dataset_service",
+                    "version": "1.0.0",
+                    "timestamp": "2024-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dataset tidak ditemukan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service sehat",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": { "status": "ok", "service": "dataset_service" },
+                  "error": null,
+                  "metadata": {
+                    "service": "dataset_service",
+                    "version": "1.0.0",
+                    "timestamp": "2024-01-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiMetadata": {
+        "type": "object",
+        "properties": {
+          "service": { "type": "string" },
+          "version": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "properties": {
+          "detail": { "type": "string" }
+        }
+      },
+      "DatasetClass": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "class_name": { "type": "string" },
+          "image_count": { "type": "integer" }
+        }
+      },
+      "Dataset": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "deleted"] },
+          "class_count": { "type": "integer", "nullable": true },
+          "total_images": { "type": "integer", "nullable": true },
+          "file_size_mb": { "type": "number", "nullable": true },
+          "minio_path": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "DatasetDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Dataset" },
+          {
+            "type": "object",
+            "properties": {
+              "classes": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/DatasetClass" }
+              }
+            }
+          }
+        ]
+      },
+      "UploadResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "dataset_id": { "type": "string", "format": "uuid" },
+              "name": { "type": "string" },
+              "class_count": { "type": "integer" },
+              "total_images": { "type": "integer" },
+              "file_size_mb": { "type": "number" },
+              "invalid_files": { "type": "array", "items": { "type": "string" } },
+              "cached": { "type": "boolean", "description": "true jika dataset identik sudah ada" }
+            }
+          },
+          "error": { "type": "string", "nullable": true },
+          "metadata": { "$ref": "#/components/schemas/ApiMetadata" }
+        }
+      },
+      "DatasetListResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Dataset" }
+          },
+          "error": { "type": "string", "nullable": true },
+          "metadata": { "$ref": "#/components/schemas/ApiMetadata" }
+        }
+      },
+      "DatasetDetailResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": { "$ref": "#/components/schemas/DatasetDetail" },
+          "error": { "type": "string", "nullable": true },
+          "metadata": { "$ref": "#/components/schemas/ApiMetadata" }
+        }
+      }
+    }
+  }
+}
