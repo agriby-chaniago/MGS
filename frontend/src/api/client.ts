@@ -32,3 +32,7 @@ apiClient.interceptors.response.use(
 export function wsBaseUrl(): string {
   return API_BASE_URL.replace(/^http/, "ws");
 }
+
+export function httpBaseUrl(): string {
+  return API_BASE_URL;
+}

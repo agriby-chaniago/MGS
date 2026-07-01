@@ -2,7 +2,13 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# `npm ci` (not used here): Tailwind v4's oxide/lightningcss native engine
+# has optional per-platform packages (e.g. @emnapi/*, WASM fallback) that a
+# lockfile generated on one host OS/libc doesn't fully enumerate for others
+# — `npm ci` then refuses as "out of sync" inside this Alpine (musl)
+# container even though the lockfile is otherwise correct. `npm install`
+# resolves fresh against the container's actual platform instead.
+RUN npm install
 
 COPY . .
 

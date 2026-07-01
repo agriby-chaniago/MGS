@@ -2,15 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { createAudit, getAudit, retryAudit } from "../api/audits";
 import { wsBaseUrl } from "../api/client";
 import type { Audit } from "../api/types";
+import { BackLink, Button, Card, StatusBadge } from "../components/ui";
 
 interface Props {
   datasetId: string;
   onCompleted: (auditId: string) => void;
+  onBack: () => void;
 }
 
 type AnalyzerStatus = "waiting" | "completed" | "failed";
 
-export default function AuditPage({ datasetId, onCompleted }: Props) {
+const analyzerIcon: Record<AnalyzerStatus, string> = {
+  completed: "✓",
+  failed: "✕",
+  waiting: "…",
+};
+
+export default function AuditPage({ datasetId, onCompleted, onBack }: Props) {
   const [audit, setAudit] = useState<Audit | null>(null);
   const [force, setForce] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,50 +103,70 @@ export default function AuditPage({ datasetId, onCompleted }: Props) {
 
   useEffect(() => closeSocket, []);
 
-  const analyzerLabel = (status: AnalyzerStatus | undefined) =>
-    status === "completed" ? "SELESAI" : status === "failed" ? "GAGAL" : "MENUNGGU";
-
   return (
-    <div className="step-panel">
-      <h2>Step 2 — Audit</h2>
+    <div>
+      {/* Only safe to leave before an audit is actively running — once
+          watchProgress starts, the Sidebar's auditInProgress lock also
+          kicks in, so hiding this here keeps both consistent. */}
+      {!audit && <BackLink onClick={onBack} label="Kembali ke Upload" />}
+      <h1 className="mb-1 text-2xl font-semibold text-white">Audit</h1>
+      <p className="mb-6 text-sm text-slate-400">Jalankan pemeriksaan otomatis untuk dataset ini.</p>
+
       {!audit && (
-        <>
-          <label>
-            <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} />
+        <Card className="p-6">
+          <label className="mb-4 flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={force}
+              onChange={(e) => setForce(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-violet-600"
+            />
             Force re-audit (abaikan cache)
           </label>
-          {error && <p className="error">{error}</p>}
-          <button onClick={handleCreate}>Buat Audit</button>
-        </>
+          {error && <p className="mb-4 text-sm text-rose-400">{error}</p>}
+          <Button onClick={handleCreate}>Buat Audit</Button>
+        </Card>
       )}
+
       {audit && (
-        <>
-          <p>Status: {audit.status}</p>
-          {audit.cached && <p className="notice">Menggunakan hasil audit sebelumnya (cached).</p>}
-          {error && <p className="error">{error}</p>}
-          <table>
-            <thead>
-              <tr>
-                <th>Analyzer</th>
-                <th>Status (live)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {audit.requested_analyzers.map((a) => (
-                <tr key={a}>
-                  <td>{a}</td>
-                  <td>{analyzerLabel(analyzerStatuses[a])}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <StatusBadge status={audit.status} />
+            {audit.cached && <span className="text-sm text-amber-400">Hasil dari cache</span>}
+          </div>
+          {error && <p className="text-sm text-rose-400">{error}</p>}
+
+          <Card className="divide-y divide-slate-800">
+            {audit.requested_analyzers.map((a) => {
+              const status = analyzerStatuses[a] ?? "waiting";
+              return (
+                <div key={a} className="flex items-center justify-between px-5 py-3.5">
+                  <span className="text-sm font-medium capitalize text-slate-200">{a}</span>
+                  <span
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                      status === "completed"
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : status === "failed"
+                          ? "bg-rose-500/20 text-rose-300"
+                          : "animate-pulse bg-slate-700 text-slate-400"
+                    }`}
+                  >
+                    {analyzerIcon[status]}
+                  </span>
+                </div>
+              );
+            })}
+          </Card>
+
           {audit.status === "failed" && (
-            <>
-              <p className="error">{audit.error_message}</p>
-              <button onClick={handleRetry}>Coba Lagi</button>
-            </>
+            <div>
+              <p className="mb-3 text-sm text-rose-400">{audit.error_message}</p>
+              <Button variant="danger" onClick={handleRetry}>
+                Coba Lagi
+              </Button>
+            </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

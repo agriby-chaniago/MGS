@@ -25,3 +25,6 @@ node_modules/
 
 # Datasets — large binary demo data, not code
 PetImages - Dataset yang digunakan untuk Demo/
+
+# CLI test artifacts (mgs report --pdf downloads to cwd)
+report_*.pdf
