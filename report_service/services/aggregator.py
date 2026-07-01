@@ -34,6 +34,7 @@ def get_report_data(audit_id: UUID, db: Session) -> dict | None:
     return {
         "audit_id": str(audit.id),
         "dataset_id": str(audit.dataset_id),
+        "user_id": str(audit.user_id) if audit.user_id else None,
         "audit_status": audit.status,
         "health_score": health["score"] if health else None,
         "grade": health["grade"] if health else None,

@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from models.database import init_db
 from routers import reports
@@ -17,6 +18,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Report Service", version="1.0.0", lifespan=lifespan)
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/api/v1/reports/health")

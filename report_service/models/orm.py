@@ -14,6 +14,7 @@ class Audit(ReadOnlyBase):
 
     id                  = Column(UUID(as_uuid=True), primary_key=True)
     dataset_id          = Column(UUID(as_uuid=True))
+    user_id             = Column(UUID(as_uuid=True), nullable=True)
     status              = Column(String(50))
     requested_analyzers = Column(JSONB)
     created_at          = Column(DateTime)

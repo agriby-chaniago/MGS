@@ -19,3 +19,9 @@ build/
 
 # Claude
 .claude/
+
+# Node
+node_modules/
+
+# Datasets — large binary demo data, not code
+PetImages - Dataset yang digunakan untuk Demo/

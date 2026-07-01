@@ -18,10 +18,66 @@ st.set_page_config(page_title="ModelGate", layout="wide", initial_sidebar_state=
 st.title("ModelGate — CV Dataset Quality Audit")
 
 
+def AUTH_HEADERS():
+    token = st.session_state.get("token")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
+def render_login_gate():
+    st.header("Login / Daftar")
+    tab_login, tab_register = st.tabs(["Login", "Daftar"])
+
+    with tab_login:
+        email = st.text_input("Email", key="login_email")
+        password = st.text_input("Password", type="password", key="login_password")
+        if st.button("Login", key="login_btn"):
+            try:
+                r = requests.post(
+                    f"{API}/api/v1/auth/login",
+                    json={"email": email, "password": password},
+                    timeout=10,
+                )
+                r.raise_for_status()
+                data = r.json()["data"]
+                st.session_state["token"] = data["access_token"]
+                st.session_state["plan"] = data["plan"]
+                st.rerun()
+            except requests.exceptions.HTTPError:
+                st.error("Email atau password salah.")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Login gagal: {e}")
+
+    with tab_register:
+        email_r = st.text_input("Email", key="register_email")
+        password_r = st.text_input("Password", type="password", key="register_password")
+        if st.button("Daftar", key="register_btn"):
+            try:
+                r = requests.post(
+                    f"{API}/api/v1/auth/register",
+                    json={"email": email_r, "password": password_r},
+                    timeout=10,
+                )
+                r.raise_for_status()
+                data = r.json()["data"]
+                st.session_state["token"] = data["access_token"]
+                st.session_state["plan"] = data["plan"]
+                st.rerun()
+            except requests.exceptions.HTTPError:
+                st.error("Registrasi gagal — email mungkin sudah terdaftar.")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Registrasi gagal: {e}")
+
+
 def render_sidebar():
+    st.sidebar.markdown(f"**Paket:** {st.session_state.get('plan', '?').upper()}")
+    if st.sidebar.button("Logout"):
+        for key in ("token", "plan"):
+            st.session_state.pop(key, None)
+        st.rerun()
+
     st.sidebar.header("Dataset History")
     try:
-        r = requests.get(f"{API}/api/v1/datasets", timeout=5)
+        r = requests.get(f"{API}/api/v1/datasets", headers=AUTH_HEADERS(), timeout=5)
         if r.status_code != 200:
             st.sidebar.caption("Tidak dapat memuat history.")
             return
@@ -58,7 +114,7 @@ def render_sidebar():
                 st.rerun()
         if col_del.button("🗑", key=f"del_{d['id']}", help="Hapus dataset"):
             try:
-                requests.delete(f"{API}/api/v1/datasets/{d['id']}", timeout=5)
+                requests.delete(f"{API}/api/v1/datasets/{d['id']}", headers=AUTH_HEADERS(), timeout=5)
             except Exception:
                 pass
             if st.session_state.get("dataset_id") == d["id"]:
@@ -105,7 +161,7 @@ def render_step_header(step):
     st.divider()
 
 
-def upload_with_progress(file_bytes, filename, name):
+def upload_with_progress(file_bytes, filename, name, headers):
     result = {"r": None, "err": None}
 
     def _req():
@@ -114,6 +170,7 @@ def upload_with_progress(file_bytes, filename, name):
                 f"{API}/api/v1/datasets/upload",
                 files={"file": (filename, file_bytes, "application/zip")},
                 data={"name": name},
+                headers=headers,
                 timeout=600,
             )
         except Exception as e:
@@ -170,7 +227,7 @@ def render_upload():
         name = os.path.splitext(file.name)[0]
         file_bytes = file.getvalue()
 
-        r, err = upload_with_progress(file_bytes, file.name, name)
+        r, err = upload_with_progress(file_bytes, file.name, name, AUTH_HEADERS())
 
         if err is not None:
             st.error(f"Upload gagal: {err}")
@@ -236,6 +293,7 @@ def render_audit():
                 r = requests.post(
                     f"{API}/api/v1/audits",
                     json={"dataset_id": dataset_id, "force": not use_cache},
+                    headers=AUTH_HEADERS(),
                     timeout=30,
                 )
                 r.raise_for_status()
@@ -274,13 +332,13 @@ def render_audit():
         try:
             start_time = time.time()
             while True:
-                r = requests.get(f"{API}/api/v1/audits/{audit_id}", timeout=10)
+                r = requests.get(f"{API}/api/v1/audits/{audit_id}", headers=AUTH_HEADERS(), timeout=10)
                 r.raise_for_status()
                 status = r.json()["data"]["status"]
 
                 done = {}
                 try:
-                    rr = requests.get(f"{API}/api/v1/reports/{audit_id}", timeout=10)
+                    rr = requests.get(f"{API}/api/v1/reports/{audit_id}", headers=AUTH_HEADERS(), timeout=10)
                     if rr.status_code == 200:
                         for res in rr.json()["data"].get("analysis_results", []):
                             done[res["analyzer_type"]] = res["status"]
@@ -352,7 +410,7 @@ def render_audit():
             if not rows:
                 done = {}
                 try:
-                    rr = requests.get(f"{API}/api/v1/reports/{audit_id}", timeout=10)
+                    rr = requests.get(f"{API}/api/v1/reports/{audit_id}", headers=AUTH_HEADERS(), timeout=10)
                     if rr.status_code == 200:
                         for res in rr.json()["data"].get("analysis_results", []):
                             done[res["analyzer_type"]] = res["status"]
@@ -386,7 +444,7 @@ def render_audit():
             st.error("Audit gagal.")
             if st.button("Coba Lagi", key="retry_audit_btn"):
                 try:
-                    r = requests.post(f"{API}/api/v1/audits/{audit_id}/retry", timeout=10)
+                    r = requests.post(f"{API}/api/v1/audits/{audit_id}/retry", headers=AUTH_HEADERS(), timeout=10)
                     r.raise_for_status()
                     st.session_state["audit_polling_done"] = False
                     st.session_state.pop("audit_final_status", None)
@@ -438,7 +496,7 @@ def render_report():
     if should_load and audit_id:
         # Fetch summary
         try:
-            r = requests.get(f"{API}/api/v1/reports/{audit_id}/summary", timeout=15)
+            r = requests.get(f"{API}/api/v1/reports/{audit_id}/summary", headers=AUTH_HEADERS(), timeout=15)
             r.raise_for_status()
             st.session_state["report_summary"] = r.json()["data"]
             st.session_state["report_audit_id_loaded"] = audit_id
@@ -447,24 +505,29 @@ def render_report():
 
         # Fetch detail per-analyzer
         try:
-            rr = requests.get(f"{API}/api/v1/reports/{audit_id}", timeout=15)
+            rr = requests.get(f"{API}/api/v1/reports/{audit_id}", headers=AUTH_HEADERS(), timeout=15)
             rr.raise_for_status()
             st.session_state["report_results"] = rr.json()["data"].get("analysis_results", [])
         except requests.exceptions.RequestException:
             st.session_state["report_results"] = []
 
         # Bug 3: fetch PDF sekaligus saat load agar download_button langsung tersedia
-        try:
-            rpdf = requests.get(f"{API}/api/v1/reports/{audit_id}/pdf", timeout=30)
-            if rpdf.status_code == 200:
-                st.session_state["pdf_bytes"] = rpdf.content
-                st.session_state["pdf_error"] = False
-            else:
+        # (skip untuk free tier — server akan 403 karena PDF export Pro/Max only)
+        if st.session_state.get("plan") == "free":
+            st.session_state["pdf_bytes"] = None
+            st.session_state["pdf_error"] = False
+        else:
+            try:
+                rpdf = requests.get(f"{API}/api/v1/reports/{audit_id}/pdf", headers=AUTH_HEADERS(), timeout=30)
+                if rpdf.status_code == 200:
+                    st.session_state["pdf_bytes"] = rpdf.content
+                    st.session_state["pdf_error"] = False
+                else:
+                    st.session_state["pdf_bytes"] = None
+                    st.session_state["pdf_error"] = True
+            except Exception:
                 st.session_state["pdf_bytes"] = None
                 st.session_state["pdf_error"] = True
-        except Exception:
-            st.session_state["pdf_bytes"] = None
-            st.session_state["pdf_error"] = True
 
     # Render dari session_state — persists saat klik tombol lain (Bug 2)
     s = st.session_state.get("report_summary")
@@ -521,7 +584,9 @@ def render_report():
     st.divider()
 
     # Bug 3: st.download_button langsung dari cached pdf_bytes — tidak butuh 2 klik
-    if st.session_state.get("pdf_bytes"):
+    if st.session_state.get("plan") == "free":
+        st.caption("Download PDF hanya untuk paket Pro/Max.")
+    elif st.session_state.get("pdf_bytes"):
         st.download_button(
             label="Download PDF Report",
             data=st.session_state["pdf_bytes"],
@@ -548,6 +613,10 @@ def render_report():
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
+if not st.session_state.get("token"):
+    render_login_gate()
+    st.stop()
+
 step = st.session_state.get("step", 1)
 render_sidebar()
 render_step_header(step)

@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "dataset_service"
+    static_configs:
+      - targets: ["dataset_service:8001"]
+
+  - job_name: "audit_service"
+    static_configs:
+      - targets: ["audit_service:8002"]
+
+  - job_name: "analysis_service"
+    static_configs:
+      - targets: ["analysis_service:8003"]
+
+  - job_name: "report_service"
+    static_configs:
+      - targets: ["report_service:8004"]
+
+  - job_name: "auth_service"
+    static_configs:
+      - targets: ["auth_service:8005"]
+
+  # RabbitMQ's built-in Prometheus plugin (see rabbitmq/Dockerfile) — free
+  # queue-depth / consumer-count metrics with zero application code, and
+  # what makes Workstream F's scaling demo visible in a Grafana panel.
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: ["rabbitmq:15692"]

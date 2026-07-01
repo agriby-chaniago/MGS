@@ -4,7 +4,7 @@ import shutil
 import zipfile
 from uuid import uuid4
 
-from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, Header, BackgroundTasks, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from models.database import get_db
@@ -23,6 +23,17 @@ router = APIRouter()
 SERVICE_NAME = "dataset_service"
 UPLOAD_TMP_DIR = "/tmp/modelgate_uploads"
 
+# Per-plan upload caps, under the absolute MAX_ZIP_SIZE_MB ceiling.
+# Default "max" (not "free") when the plan header is absent — see plan
+# Workstream A: defaulting to "free" here would regress today's unrestricted
+# behavior during the pre-auth rollout window, since Nginx doesn't send
+# X-User-Plan until auth_request is wired up.
+TIER_UPLOAD_LIMITS_MB = {
+    "free": 150,
+    "pro": 1024,
+    "max": MAX_ZIP_SIZE_MB,
+}
+
 
 def _cleanup_tmp(path: str):
     if os.path.exists(path):
@@ -35,21 +46,27 @@ async def upload_dataset(
     file: UploadFile = File(...),
     name: str = Form(...),
     db: Session = Depends(get_db),
+    x_user_plan: str = Header(default="max", alias="X-User-Plan"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
 ):
-    # 1. Cek size limit
+    # 1. Cek size limit (per-tier cap, under the absolute MAX_ZIP_SIZE_MB ceiling)
+    tier_limit_mb = TIER_UPLOAD_LIMITS_MB.get(x_user_plan, TIER_UPLOAD_LIMITS_MB["free"])
     file_bytes = await file.read()
     size_mb = len(file_bytes) / (1024 * 1024)
-    if size_mb > MAX_ZIP_SIZE_MB:
+    if size_mb > tier_limit_mb:
         raise HTTPException(
             status_code=413,
-            detail=f"File terlalu besar. Maksimum {MAX_ZIP_SIZE_MB}MB, diterima {size_mb:.1f}MB",
+            detail=f"File terlalu besar untuk paket '{x_user_plan}'. Maksimum {tier_limit_mb}MB, diterima {size_mb:.1f}MB",
         )
 
-    # 1b. Dedup: cek hash — return existing dataset jika sama
+    # 1b. Dedup: cek hash — return existing dataset jika sama (scoped to this
+    # user's own datasets, or unowned legacy ones — not another user's data)
     file_hash = hashlib.sha256(file_bytes).hexdigest()
     existing = db.query(Dataset).filter(
         Dataset.file_hash == file_hash,
         Dataset.status == "active",
+    ).filter(
+        (Dataset.user_id == x_user_id) | (Dataset.user_id.is_(None))
     ).first()
     if existing:
         return success_response(
@@ -113,6 +130,7 @@ async def upload_dataset(
             file_size_mb=round(stats.total_size_bytes / (1024 * 1024), 2),
             minio_path=minio_path,
             file_hash=file_hash,
+            user_id=x_user_id,
         )
         db.add(dataset)
         db.flush()

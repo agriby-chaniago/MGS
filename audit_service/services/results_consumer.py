@@ -8,6 +8,7 @@ import pika
 from models.database import SessionLocal
 from models.orm import Audit, AnalysisResultReadOnly
 from services.state_machine import transition
+from services.ws_manager import broadcast_threadsafe
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,16 @@ def process_result_message(ch, method, properties, body):
     try:
         payload = json.loads(body)
         audit_id = payload["audit_id"]
+
+        # New hook point (WebSocket workstream): broadcast this individual
+        # analyzer's completion immediately, before the aggregate-status
+        # checks below — this is what makes progress "live" per-analyzer
+        # instead of only firing once at final completion.
+        broadcast_threadsafe(audit_id, {
+            "type": "analyzer_update",
+            "analyzer_type": payload.get("analyzer_type"),
+            "status": payload.get("status"),
+        })
 
         audit = db.query(Audit).filter(Audit.id == audit_id).first()
         if not audit:
@@ -54,6 +65,7 @@ def process_result_message(ch, method, properties, body):
 
         db.commit()
         logger.info(f"[{audit_id}] Audit marked {audit.status}")
+        broadcast_threadsafe(audit_id, {"type": "audit_completed", "status": audit.status})
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:

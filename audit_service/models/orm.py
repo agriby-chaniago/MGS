@@ -11,10 +11,11 @@ class Audit(AuditBase):
 
     id                  = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     dataset_id          = Column(UUID(as_uuid=True), nullable=False)
+    user_id             = Column(UUID(as_uuid=True), nullable=True, index=True)
     status              = Column(String(50), default="pending")
     requested_analyzers = Column(JSONB, default=lambda: [
                               "corruption", "empty", "resolution",
-                              "distribution", "phash"
+                              "distribution", "duplicate"
                           ])
     created_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at        = Column(DateTime, nullable=True)

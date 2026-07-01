@@ -18,13 +18,14 @@ services:
       retries: 10
 
   rabbitmq:
-    image: rabbitmq:3.12-management-alpine
+    build: ./rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     ports:
       - "5672:5672"
       - "15672:15672"
+      - "15692:15692"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -52,8 +53,13 @@ services:
 
   dataset_service:
     build: ./dataset_service
-    ports:
-      - "8001:8001"
+    # No fixed host port — reached only via Nginx (auth_request gate),
+    # never directly. A fixed host port would let anyone bypass the whole
+    # auth gateway by self-supplying X-User-Id/X-User-Plan headers, since
+    # this service has no way to verify those headers actually came from
+    # Nginx. Same rationale as analysis_service's port removal (scaling).
+    expose:
+      - "8001"
     env_file: .env.example
     volumes:
       - ./shared:/app/shared
@@ -67,8 +73,9 @@ services:
 
   audit_service:
     build: ./audit_service
-    ports:
-      - "8002:8002"
+    # No fixed host port — see dataset_service comment above.
+    expose:
+      - "8002"
     env_file: .env.example
     volumes:
       - ./shared:/app/shared
@@ -82,8 +89,13 @@ services:
 
   analysis_service:
     build: ./analysis_service
-    ports:
-      - "8003:8003"
+    # No fixed host port: this service is only ever reached via Nginx's
+    # internal DNS (analysis_service:8003), never directly from the host.
+    # A fixed "8003:8003" mapping would collide when scaled to >1 replica
+    # (`docker compose up -d --scale analysis_service=3`); closing the host
+    # port also removes a Nginx-bypass path once auth is enforced.
+    expose:
+      - "8003"
     env_file: .env.example
     volumes:
       - ./shared:/app/shared
@@ -99,8 +111,22 @@ services:
 
   report_service:
     build: ./report_service
+    # No fixed host port — see dataset_service comment above.
+    expose:
+      - "8004"
+    env_file: .env.example
+    volumes:
+      - ./shared:/app/shared
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  auth_service:
+    build: ./auth_service
     ports:
-      - "8004:8004"
+      - "8005:8005"
     env_file: .env.example
     volumes:
       - ./shared:/app/shared
@@ -133,6 +159,7 @@ services:
       - audit_service
       - analysis_service
       - report_service
+      - auth_service
 
   streamlit:
     build: ./streamlit_app
@@ -143,7 +170,52 @@ services:
     depends_on:
       - nginx
 
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Vite bakes this in at build time (see frontend/Dockerfile) — it
+        # must be the browser-reachable gateway URL, not the internal
+        # nginx:80 hostname Streamlit uses server-side, since this runs in
+        # the user's browser, not inside the Docker network.
+        VITE_API_BASE_URL: http://localhost:8080
+    ports:
+      - "3000:80"
+    depends_on:
+      - nginx
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - dataset_service
+      - audit_service
+      - analysis_service
+      - report_service
+      - auth_service
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+    ports:
+      # Container's own default (3000) remapped to avoid colliding with
+      # the frontend service's host port 3000.
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   rabbitmq_data:
   minio_data:
+  prometheus_data:
+  grafana_data:

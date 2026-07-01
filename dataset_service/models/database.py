@@ -29,6 +29,10 @@ def init_db():
             "ALTER TABLE IF EXISTS dataset_svc.datasets "
             "ADD COLUMN IF NOT EXISTS file_hash VARCHAR(64)"
         ))
+        conn.execute(text(
+            "ALTER TABLE IF EXISTS dataset_svc.datasets "
+            "ADD COLUMN IF NOT EXISTS user_id UUID"
+        ))
         conn.commit()
     from models.orm import Dataset, DatasetClass  # noqa: F401
     Base.metadata.create_all(bind=engine)

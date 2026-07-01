@@ -18,6 +18,7 @@ class Dataset(Base):
     file_size_mb = Column(Float)
     minio_path   = Column(String)
     file_hash    = Column(String(64), nullable=True, index=True)
+    user_id      = Column(UUID(as_uuid=True), nullable=True, index=True)
     created_at   = Column(DateTime, default=datetime.utcnow)
 
     classes      = relationship("DatasetClass", back_populates="dataset")

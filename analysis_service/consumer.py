@@ -77,7 +77,11 @@ def process_message(ch, method, properties, body):
         audit.status = "processing"
         db.commit()
 
-        analyzers = get_analyzers()
+        # Filter to only the analyzers the tier/request actually asked for —
+        # previously this field was read for the idempotency count above but
+        # never used to filter, so all 5 always ran regardless of plan.
+        requested = set(payload["requested_analyzers"])
+        analyzers = [a for a in get_analyzers() if a.analyzer_type in requested]
         for i, analyzer in enumerate(analyzers):
             logger.info(f"[{audit_id}] Running {analyzer.analyzer_type} ({i+1}/{len(analyzers)})")
             started = datetime.now(timezone.utc)

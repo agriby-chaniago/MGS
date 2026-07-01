@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from models.database import get_db
@@ -14,11 +14,23 @@ router = APIRouter()
 SERVICE_NAME = "dataset_service"
 
 
+def _check_ownership(dataset: Dataset, x_user_id: str | None):
+    # 404 (not 403) so a user can't tell whether another user's resource
+    # even exists. NULL-owned rows are legacy/shared — visible/actionable
+    # by everyone, matching the list-view rule below.
+    if dataset.user_id is not None and str(dataset.user_id) != x_user_id:
+        raise HTTPException(status_code=404, detail="Dataset tidak ditemukan")
+
+
 @router.get("/api/v1/datasets")
-def list_datasets(db: Session = Depends(get_db)):
+def list_datasets(
+    db: Session = Depends(get_db),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+):
     datasets = (
         db.query(Dataset)
         .filter(Dataset.status != "deleted")
+        .filter((Dataset.user_id == x_user_id) | (Dataset.user_id.is_(None)))
         .order_by(Dataset.created_at.desc())
         .all()
     )
@@ -29,13 +41,18 @@ def list_datasets(db: Session = Depends(get_db)):
 
 
 @router.get("/api/v1/datasets/{dataset_id}")
-def get_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
+def get_dataset(
+    dataset_id: UUID,
+    db: Session = Depends(get_db),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+):
     dataset = db.query(Dataset).filter(
         Dataset.id == dataset_id,
         Dataset.status != "deleted",
     ).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset tidak ditemukan")
+    _check_ownership(dataset, x_user_id)
     return success_response(
         data=DatasetDetailSchema.model_validate(dataset).model_dump(),
         service=SERVICE_NAME,
@@ -43,13 +60,18 @@ def get_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.delete("/api/v1/datasets/{dataset_id}", status_code=200)
-def delete_dataset(dataset_id: UUID, db: Session = Depends(get_db)):
+def delete_dataset(
+    dataset_id: UUID,
+    db: Session = Depends(get_db),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+):
     dataset = db.query(Dataset).filter(
         Dataset.id == dataset_id,
         Dataset.status != "deleted",
     ).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset tidak ditemukan")
+    _check_ownership(dataset, x_user_id)
     dataset.status = "deleted"
     db.commit()
     try:

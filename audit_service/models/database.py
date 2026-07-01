@@ -25,6 +25,10 @@ class ReadOnlyBase(DeclarativeBase):
 def init_db():
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS audit_svc"))
+        conn.execute(text(
+            "ALTER TABLE IF EXISTS audit_svc.audits "
+            "ADD COLUMN IF NOT EXISTS user_id UUID"
+        ))
         conn.commit()
     from models.orm import Audit  # noqa: F401
     AuditBase.metadata.create_all(bind=engine)
