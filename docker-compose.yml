@@ -206,6 +206,8 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - ./observability/grafana-dashboards-provider.yml:/etc/grafana/provisioning/dashboards/provider.yml:ro
+      - ./observability/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/modelgate-overview.json:ro
     ports:
       # Container's own default (3000) remapped to avoid colliding with
       # the frontend service's host port 3000.
