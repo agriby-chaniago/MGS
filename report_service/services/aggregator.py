@@ -39,6 +39,13 @@ def get_report_data(audit_id: UUID, db: Session) -> dict | None:
         "health_score": health["score"] if health else None,
         "grade": health["grade"] if health else None,
         "components": health["components"] if health else None,
+        # So the UI can tell "component defaulted to neutral because its
+        # analyzer wasn't requested for this tier" apart from "genuinely
+        # scored 1.0" — see health_score.py's neutral-default gap found
+        # while preparing demo screenshots (free tier skips duplicate/
+        # distribution, but the score still showed them as a perfect 1.0
+        # with no indication they were never actually checked).
+        "requested_analyzers": audit.requested_analyzers,
         "analysis_results": results_data,
         "created_at": audit.created_at.isoformat() if audit.created_at else None,
         "completed_at": audit.completed_at.isoformat() if audit.completed_at else None,

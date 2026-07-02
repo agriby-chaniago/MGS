@@ -18,11 +18,17 @@ const gradeColor: Record<string, string> = {
   F: "text-rose-400",
 };
 
-const COMPONENTS: { key: "I" | "U" | "D" | "Q"; label: string; desc: string; weight: number }[] = [
-  { key: "I", label: "Integrity", desc: "1 − corruption rate", weight: 30 },
-  { key: "U", label: "Uniqueness", desc: "1 − duplicate rate (pHash)", weight: 25 },
-  { key: "D", label: "Distribution", desc: "1 − gini coefficient", weight: 25 },
-  { key: "Q", label: "Quality", desc: "% gambar dalam ±1σ resolusi", weight: 20 },
+const COMPONENTS: {
+  key: "I" | "U" | "D" | "Q";
+  label: string;
+  desc: string;
+  weight: number;
+  analyzer: string;
+}[] = [
+  { key: "I", label: "Integrity", desc: "1 − corruption rate", weight: 30, analyzer: "corruption" },
+  { key: "U", label: "Uniqueness", desc: "1 − duplicate rate (pHash)", weight: 25, analyzer: "duplicate" },
+  { key: "D", label: "Distribution", desc: "1 − gini coefficient", weight: 25, analyzer: "distribution" },
+  { key: "Q", label: "Quality", desc: "% gambar dalam ±1σ resolusi", weight: 20, analyzer: "resolution" },
 ];
 
 function ScoreRing({ score, grade }: { score: number; grade: string }) {
@@ -89,28 +95,46 @@ export default function ReportPage({ auditId, onReset, onBack }: Props) {
           <p className="text-lg font-medium text-white">
             Dataset {(report.health_score ?? 0) >= 0.8 ? "siap dipakai" : "perlu diperbaiki"}
           </p>
+          {report.requested_analyzers && report.requested_analyzers.length < 5 && (
+            <p className="mt-1 text-xs text-amber-400">
+              Dihitung dari {report.requested_analyzers.length}/5 analyzer sesuai paket saat ini —
+              komponen yang tidak diaudit ditandai di bawah, bukan otomatis dianggap sempurna.
+            </p>
+          )}
         </div>
       </Card>
 
       {report.components && (
         <Card className="flex flex-col gap-4 p-6">
-          {COMPONENTS.map(({ key, label, desc, weight }) => {
+          {COMPONENTS.map(({ key, label, desc, weight, analyzer }) => {
             const val = report.components![key];
+            const wasAudited = report.requested_analyzers?.includes(analyzer) ?? true;
             return (
               <div key={key}>
                 <div className="mb-1 flex items-baseline justify-between">
                   <span className="text-sm font-medium text-slate-200">
                     {label} <span className="text-xs text-slate-500">bobot {weight}%</span>
                   </span>
-                  <span className="text-sm font-semibold text-slate-300">{val.toFixed(2)}</span>
+                  {wasAudited ? (
+                    <span className="text-sm font-semibold text-slate-300">{val.toFixed(2)}</span>
+                  ) : (
+                    <span className="text-xs font-medium text-slate-500">Tidak diaudit</span>
+                  )}
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
-                    style={{ width: `${Math.max(0, Math.min(1, val)) * 100}%` }}
-                  />
+                  {wasAudited ? (
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+                      style={{ width: `${Math.max(0, Math.min(1, val)) * 100}%` }}
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-[repeating-linear-gradient(45deg,theme(colors.slate.700),theme(colors.slate.700)_4px,transparent_4px,transparent_8px)]" />
+                  )}
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{desc}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {desc}
+                  {!wasAudited && " — upgrade paket untuk mengaktifkan analyzer ini"}
+                </p>
               </div>
             );
           })}

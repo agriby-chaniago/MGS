@@ -11,6 +11,7 @@ interface Props {
   onSelectDataset: (dataset: Dataset) => void;
   activeDatasetId: string | null;
   auditInProgress: boolean;
+  refreshTrigger: number;
 }
 
 function UpgradePanel() {
@@ -148,7 +149,7 @@ function ApiKeyPanel() {
   );
 }
 
-export default function Sidebar({ onSelectDataset, activeDatasetId, auditInProgress }: Props) {
+export default function Sidebar({ onSelectDataset, activeDatasetId, auditInProgress, refreshTrigger }: Props) {
   const { plan, logout } = useAuth();
   const { showToast } = useToast();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -166,7 +167,7 @@ export default function Sidebar({ onSelectDataset, activeDatasetId, auditInProgr
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refreshTrigger]);
 
   async function confirmDelete() {
     if (!pendingDelete) return;

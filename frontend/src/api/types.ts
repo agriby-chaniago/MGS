@@ -83,6 +83,7 @@ export interface ReportSummary {
 
 export interface ReportDetail extends ReportSummary {
   dataset_id: string;
+  requested_analyzers: string[];
   analysis_results: AnalysisResult[];
   created_at: string;
   completed_at: string | null;

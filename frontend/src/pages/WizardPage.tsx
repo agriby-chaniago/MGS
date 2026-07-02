@@ -47,10 +47,12 @@ export default function WizardPage() {
   const [step, setStep] = useState<Step>(1);
   const [dataset, setDataset] = useState<UploadResponse | null>(null);
   const [auditId, setAuditId] = useState<string | null>(null);
+  const [sidebarRefresh, setSidebarRefresh] = useState(0);
 
   function handleUploaded(data: UploadResponse) {
     setDataset(data);
     setStep(2);
+    setSidebarRefresh((n) => n + 1);
   }
 
   function handleSelectFromSidebar(d: Dataset) {
@@ -85,6 +87,7 @@ export default function WizardPage() {
         onSelectDataset={handleSelectFromSidebar}
         activeDatasetId={dataset?.dataset_id ?? null}
         auditInProgress={auditInProgress}
+        refreshTrigger={sidebarRefresh}
       />
       <main className="flex-1 overflow-y-auto p-10">
         <div className="mx-auto max-w-3xl">
